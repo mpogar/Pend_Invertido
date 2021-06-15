@@ -143,8 +143,3 @@ ax.plot([1, 2, 3, 4], [1, 4, 2, 3])
 # Llamo a método mainloop(), que es un bucle infinito
 # siempre debe estar al final del archivo
 raiz.mainloop()
-
-
-
-
-     
