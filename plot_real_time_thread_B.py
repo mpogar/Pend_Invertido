@@ -1,20 +1,25 @@
+########################  FUNCIONA BIEN  #########################################
+
 import serial
 import time
 import numpy as np        
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from threading import Thread, Lock
+from multiprocessing import Value
 
-muestras = 6
-distancia = ""
+# Período de muestreo para la grafica en ms
+Tsample = 1000
+muestras = 100
+# distancia = 0.00
+distancia = Value('f', 0.00)
 
 # getData lee puerto serie y guarda el dato en la variable global float 'distancia'
 # Está función se ejecuta en el thread "colectorDatos"
 def getData(lock):
-    global distancia
+    # global distancia
     try:
         serialArduino = serial.Serial("/dev/tty.usbmodem11101",9600,timeout=1.0)
-        #timeout (1 segundo) o tiempo máximo de espera para una lectura.
     except:
         print("No se puede conectar al puerto")
     time.sleep(1) # espera 1 seg, para dar tiempo a conectarse
@@ -23,18 +28,19 @@ def getData(lock):
             #serialArduino.reset_input_buffer()
             # lock the state 
             lock.acquire()
-            distancia = serialArduino.readline().decode('ascii').strip()
+            distancia.value = float(serialArduino.readline().decode('ascii').strip())
             # unlock the state 
             lock.release()
-            print(distancia)
+            print(distancia.value)
         except:
             print("Error lectura puerto SERIE")
 
-# aniGraf realiza una gráfica animada de los datos recibidos en la variable global 
-# float 'distancia'.
-# Está función se ejecuta en el thread "graficoDatos"
+# aniGraf realiza una gráfica animada con los datos recibidos en la variable 
+# 'distancia'. Está función se debería ejecutar en el thread "graficoDatos"
+# pero no lo pude hacer correr así.
 def aniGraf(lock):
-    global muestras, distancia 
+    global muestras, Tsample
+    # global distancia 
     xdata = []
     ydata = []
     ############################  MATPLOTLIB  ########################################
@@ -89,18 +95,22 @@ def aniGraf(lock):
     # class matplotlib.animation.FuncAnimation(fig, func, frames=None, init_func=None, 
     # fargs=None, save_count=None, *, cache_frame_data=True, **kwargs)
     ##################################################################################
-    ani = FuncAnimation(fig, update, fargs = (ln, xdata, ydata, ax, lock, distancia), interval=100, blit=False)
+    ani = FuncAnimation(fig, update, fargs = (ln, xdata, ydata, ax, lock, distancia), \
+        interval=Tsample, blit=False)
     # Pintamos la linea
     plt.show()
 
 # Función que actualizará los datos de la gráfica
 # Se llama periódicamente desde la 'FuncAnimation'
-def update(frame, ln_aux, dx, dy, ax, lock, aux):
-    print('Martin')
+def update(frame, ln_aux, dx, dy, ax, lock, distancia):
     try:
         # Use the lock as a context manager
-        with lock:
-            dy.append(float(aux))
+        # lock the state 
+        lock.acquire()
+        # dy.append(float(distancia.value))
+        dy.append(distancia.value)
+        # unlock the state 
+        lock.release()
         if (len(dy) == muestras + 1):
             dx.append(frame)
             dx.pop(0)
@@ -115,21 +125,33 @@ def update(frame, ln_aux, dx, dy, ax, lock, aux):
     ln_aux.set_data(dx,dy)
     return ln_aux,
 
-
 # Configuramos y lanzamos los hilos encargados de:
 # leer datos del serial,
 # graficar los datos obtenidos.
 if __name__ == "__main__":
+
     # create a lock
+    # Cuando más de un hilo está bloqueado en acquire() esperando 
+    # que el estado sea abierto, sólo un hilo procederá cuando una 
+    # llamada a release() restablezca el estado a abierto; cuál de 
+    # los hilos en espera procederá no está definido, y puede 
+    # variar a través de las implementaciones.
     lock = Lock()
+
     # create a Threads
     colectorDatos = Thread(target = getData, args=(lock,))
     graficoDatos =  Thread(target = aniGraf, args=(lock,))
+
     # init Threads
     colectorDatos.start()
-    graficoDatos.start()
+    # graficoDatos.start()
+    aniGraf(lock)   
 
+    # Espera a que el hilo termine. Esto bloquea el hilo llamador 
+    # hasta que el hilo cuyo método join() es llamado finalice – ya 
+    # sea normalmente o a través de una excepción no gestionada – o 
+    # hasta que el tiempo de espera opcional caduque.
     colectorDatos.join()
-    graficoDatos.join()
+    # graficoDatos.join()
 
-
+ 
