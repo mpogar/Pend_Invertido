@@ -10,7 +10,7 @@ from threading import Thread, Lock, Event
 event = Event()
 
 # Período de muestreo para la grafica en ms
-Tsample = 1000
+Tsample = 100
 muestras = 50
 distancia = 0.00
 
@@ -87,7 +87,7 @@ def aniGraf(lock):
     # plt.setp(lines, color='r', linewidth=2.0)
     # or MATLAB style string value pairs
     # plt.setp(lines, 'color', 'r', 'linewidth', 2.0)
-    ax.set_xlim(0, muestras-1)
+    ax.set_xlim(0, (muestras-1))
     ax.set_ylim(-0.2, 1.2)
     plt.grid()
     ##################################################################################
@@ -143,12 +143,12 @@ if __name__ == "__main__":
 
     # create a Threads
     colectorDatos = Thread(target = getData, args=(lock,))
-    graficoDatos =  Thread(target = aniGraf, args=(lock,))
+    # graficoDatos =  Thread(target = aniGraf, args=(lock,))
 
     # init Threads
     colectorDatos.start()
     # graficoDatos.start()
-    aniGraf(lock)   
+    aniGraf(lock,)   
 
     # Espera a que el hilo termine. Esto bloquea el hilo llamador 
     # hasta que el hilo cuyo método join() es llamado finalice – ya 
